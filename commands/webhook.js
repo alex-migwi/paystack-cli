@@ -163,6 +163,16 @@ export function registerWebhookCommands(program) {
         });
       });
 
+      server.on('error', (err) => {
+        if (err.code === 'EADDRINUSE') {
+          helpers.errorLog(`Port ${port} is already in use. Stop the process on port ${port} or run with --port <number>.`);
+          process.exit(1);
+        } else {
+          helpers.errorLog(err.message);
+          process.exit(1);
+        }
+      });
+
       server.listen(port, async () => {
         console.log(chalk.bold.blue('\nPaystack Webhook Listener & Tunnel Proxy'));
         console.log('------------------------------------------');
