@@ -1,0 +1,18 @@
+Candidate Assessment License
+
+Copyright (c) 2026 Alex Muturi. All Rights Reserved.
+
+This repository and its contents are submitted strictly for candidate evaluation 
+purposes in connection with the DevEx Lead technical assessment at Paystack.
+
+PERMISSIONS & RESTRICTIONS:
+1. Permission is granted to Paystack, Stripe, their hiring team, and technical reviewers 
+   to clone, build, run, inspect, and evaluate this software for candidate review 
+   and hiring evaluation purposes.
+2. No right or permission is granted to deploy, host, copy, adapt, redistribute, 
+   or integrate any portion of this codebase, refactored CLI architecture, or custom 
+   tooling into Paystack or Stripe production systems, internal products, or commercial 
+   services without an explicit written employment or licensing agreement.
+3. Original upstream Paystack CLI components remain subject to their original MIT License. 
+   All original refactored code, Commander command structures, spec processing pipelines, 
+   and update notification workflows remain the exclusive intellectual property of the author.
