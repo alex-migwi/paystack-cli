@@ -1,124 +1,161 @@
-# dev-cli
+# Paystack CLI (`@paystack-oss/dev-cli`)
 
 [![Paystack Logo](https://res.cloudinary.com/drps6uoe4/image/upload/c_scale,w_200/v1584835701/Paystack-CeruleanBlue-StackBlue-HL_2_neik7g.png)](https://paystack.com)
 
-The Paystack CLI helps you build, test, and manage your Paystack integration right from the terminal.
+The **Paystack CLI** is a robust, developer-first command-line tool modeled after modern CLI standards (`stripe-cli`). It enables developers to build, test, script, and manage their Paystack integrations directly from their terminal or CI/CD pipelines.
 
-With the Paystack CLI, you can:
+---
 
-Securely test webhooks without relying on third-party tunneling software
-Trigger webhook events to easily test your integration
-Create, retrieve, update, and delete API objects
-Clone real life sample applications with fully integrated payment channels.
+## ⚡ Key Developer Experience (DevEx) Features
 
-And of course the Paystack CLI is open source with a [public repository](https://github.com/lukman-paystack/paystack-cli)
-on GitHub. Contributions, features, sample apps from developers are encouraged.
+* **🔑 Automatic Secret Key Retrieval**: Authenticate once via `paystack login`. The CLI securely stores your session token in `~/.config/paystack/config.json` and automatically resolves the correct secret API key (`test` or `live`) behind the scenes per request. **No manual API key copying or hardcoded `.env` files required!**
+* **🌐 Complete Online Paystack API Surface**: Execute requests against **125 endpoints across 27 API resources** (`transaction`, `customer`, `subaccount`, `plan`, `subscription`, `transfer`, `refund`, `bank`, `dispute`, etc.) with strict parameter type validation.
+* **⚡ 40x Faster Native Spec Engine**: Powered by an offline bundled JSON spec (`lib/paystack/openapi.json`) derived from [`paystack-spec-enriched`](https://github.com/PaystackOSS/paystack-spec-enriched), achieving **~360ms total command execution time**.
+* **⚓ Zero-Dependency Local Webhooks**: Simulate signed webhook events with authentic HMAC SHA-512 signatures (`x-paystack-signature`) via `paystack webhook trigger` or listen to local webhooks with `paystack webhook listen` — **no 3rd-party tunneling services (`ngrok`) required**.
+* **🤖 Scriptable & Machine-Readable**: One-shot subcommands built with `commander`. Pass `--json` to pipe response payloads directly into shell utilities like `jq` or GitHub Actions scripts.
 
-## Installation
+---
 
-Paystack requires [Node.js](https://nodejs.org/) v8+ to run.
+## 🚀 Installation & Quick Start
 
-Install the dependencies and devDependencies and start the instance.
+Requires [Node.js](https://nodejs.org/) v18+.
 
-```sh
-$ npm install -g @paystack-oss/dev-cli
-$ paystack
-$ login
+```bash
+# Global installation via npm
+npm install -g @paystack-oss/dev-cli
+
+# Verify installation
+paystack --version
 ```
 
-## Get started
+---
 
-### API
+## 🔐 1. Authentication & Automatic Key Resolution
 
-Paystack CLI allows you to make API calls to the Paystack API right from the terminal, for example to initialize a transaction, run
+### Sign In (`paystack login`)
+Interactively log in to your Paystack account and select your active business integration.
 
-```sh
-$ transaction initialize --amount 1000 --email customer@email.com
+```bash
+paystack login
+```
+> **How It Works Under the Hood**:
+> 1. The CLI authenticates your account and stores a session JWT token in system-standard `~/.config/paystack/config.json` with user-only (`0600`) permissions.
+> 2. Whenever you execute an API command, `lib/helpers.js` queries Paystack's key resolution endpoint (`/integration/keys`) behind the scenes using the session token.
+> 3. The CLI automatically retrieves and attaches the appropriate Bearer Secret Key (`test` or `live`) for the request and disposes of it in memory.
+
+### Inspect Status (`paystack status`)
+View your current login account, active business name & ID, environment domain (`TEST`/`LIVE`), token expiration time, and config path.
+
+```bash
+paystack status
+paystack status --json
 ```
 
-The terminal's output would look like this
+---
 
-```sh
-authorization_url - - - -- - -- - - - - - -  - - - -  - https://checkout.paystack.com/9wvzhxlk66uylzp
-access_code - - - -- - -- - - - - - -  - - - -  - 9wvzhxlk66uylzp
-reference - - - -- - -- - - - - - -  - - - -  - se8b1ty80b
+## 📡 2. Calling the Paystack API
+
+Execute requests against any Paystack API resource directly from your terminal.
+
+```bash
+# Initialize a payment
+paystack api transaction initialize \
+  --email "customer@example.com" \
+  --amount 50000 \
+  --currency "NGN" \
+  --domain test
+
+# Verify a transaction (piped with jq)
+paystack api transaction verify --reference "qTPrJoy9Bx" --json | jq '.data.status'
+
+# List transactions
+paystack api transaction list --perPage 10 --status success
+
+# Create a customer
+paystack api customer create --email "alex@example.com" --first_name "Alex" --last_name "Muturi"
+
+# Raw REST HTTP Shortcuts
+paystack get transaction/verify/qTPrJoy9Bx --domain test
+paystack post transaction/initialize --domain test
 ```
 
-#### Another example
+### Domain Environment Switching
+Toggle between `test` and `live` modes on any command:
+* Pass `--domain live` or `--domain test` on specific commands.
+* Or set a global default: `paystack config set domain test`.
 
-```sh
-$ transaction verify --reference T394541625653843 --domain live
+---
+
+## ⚓ 3. Webhook Testing & Simulation (Zero-Dependency)
+
+Test local webhook endpoints without installing `ngrok` or setting up 3rd-party tunneling accounts.
+
+```bash
+# List all pre-configured mock webhook events
+paystack webhook trigger --list
+
+# Trigger a charge.success event with a signed HMAC SHA-512 header
+paystack webhook trigger charge.success \
+  --forward-to http://localhost:3000/api/paystack-webhook
+
+# Run a local proxy listener
+paystack webhook listen --port 7777 --forward-to http://localhost:3000/api/paystack-webhook
 ```
 
-#### output
+---
 
-```sh
-id - - - -- - -- - - - - - -  - - - -  - 521587687
-domain - - - -- - -- - - - - - -  - - - -  - live
-status - - - -- - -- - - - - - -  - - - -  - success
-reference - - - -- - -- - - - - - -  - - - -  - T394541625653843
-amount - - - -- - -- - - - - - -  - - - -  - 100000
-gateway_response - - - -- - -- - - - - - -  - - - -  - Approved
-paid_at - - - -- - -- - - - - - -  - - - -  - 2020-02-27T17:28:14.000Z
-created_at - - - -- - -- - - - - - -  - - - -  - 2020-02-27T17:27:31.000Z
-channel - - - -- - -- - - - - - -  - - - -  - card
-currency - - - -- - -- - - - - - -  - - - -  - NGN
-ip_address - - - -- - -- - - - - - -  - - - -  - 102.67.15.8
-fees - - - -- - -- - - - - - -  - - - -  - 1500
-plan - - - -- - -- - - - - - -  - - - -  - PLN_q34mm97ac7pnqj1
-paidAt - - - -- - -- - - - - - -  - - - -  - 2020-02-27T17:28:14.000Z
-createdAt - - - -- - -- - - - - - -  - - - -  - 2020-02-27T17:27:31.000Z
-requested_amount - - - -- - -- - - - - - -  - - - -  - 100000
-transaction_date - - - -- - -- - - - - - -  - - - -  - 2020-02-27T17:27:31.000Z
+## 🛠️ 4. Configuration & Auto-Reporting Package Updates
 
+The CLI includes built-in **Self-Reporting Package Update Notifications**. Once every 24 hours, the CLI non-blockingly checks the NPM registry. When a new version of `@paystack-oss/dev-cli` is published, the CLI notifies you directly in your terminal. 
+
+Updating `@paystack-oss/dev-cli` via NPM automatically updates both the CLI logic and the bundled OpenAPI specification:
+
+```bash
+# Update CLI and OpenAPI specification to latest release
+npm install -g @paystack-oss/dev-cli
+
+# View CLI configurations
+paystack config list
+paystack config list --json
+
+# Read or set a specific preference
+paystack config get domain
+paystack config set domain live
+
+# Inspect active OpenAPI spec details
+paystack openapi info
+
+# Reset custom local spec back to bundled release spec
+paystack openapi sync
 ```
 
-### Webhook
+---
 
-You can tunnel Paystack webhook events directly to your localhost without any third party software directly from your terminal.
+## 📦 5. Starter Sample Applications
 
-You first need to sign up (or login) on [ngrok](https://ngrok.com/) and obtain your auth token.
-Then add it as an environment variable `NGROK_AUTH_TOKEN`
+Browse and clone Paystack starter sample templates:
 
-```
- $ webhook listen localhost:8995/pay/pstk-webhook?country=ng
-```
+```bash
+# List available sample repositories
+paystack samples list
 
-#### output
-
-```sh
-> Tunelling webhook events to localhost:8995/pay/pstk-webhook?country=ng
-> Webhook events would now be received at localhost:8995/pay/pstk-webhook?country=ng
+# Clone a sample project
+paystack samples create sample_vue my-paystack-app
 ```
 
-NOTE - This command is only avalaible in test mode, and by using this command, the CLI would automatically make changes to the Test Webhook URL set on your Paystack dashboard.
+---
 
-You can also run an health check on your live/test webhook endpoint from your terminal
+## 📚 Complete Documentation Suite
 
-```sh
-$ webhook ping --domain live
-```
+For detailed technical references, check the [`docs/`](file:///home/alex-muturi/alex/paystack-cli/docs/) directory:
 
-#### output
+* **[`CLI_USER_GUIDE.md`](file:///home/alex-muturi/alex/paystack-cli/docs/CLI_USER_GUIDE.md)**: Hands-on user guide with full command options, flag reference, and Bash/`jq` automation recipes.
+* **[`MODERN_CLI_DOCUMENTATION.md`](file:///home/alex-muturi/alex/paystack-cli/docs/MODERN_CLI_DOCUMENTATION.md)**: Modern CLI architecture, OpenAPI spec engine, and Old vs. New feature comparison table.
+* **[`ARCHITECTURAL_DECISIONS.md`](file:///home/alex-muturi/alex/paystack-cli/docs/ARCHITECTURAL_DECISIONS.md)**: Architectural Decision Records (ADRs 001 - 006) covering session key security, offline spec bundling, and zero-drift GitHub Actions workflows.
+* **[`OLD_CLI_DOCUMENTATION.md`](file:///home/alex-muturi/alex/paystack-cli/docs/OLD_CLI_DOCUMENTATION.md)**: Legacy REPL CLI documentation and critique.
 
-```sh
--  - - - - - - -  - - -  - - - -   - - - --  -- - - - - - -
-Sending sample charge.success event payload to https://paycash.pstk.xyz/pay/pstk-webhook?country=ng
-401 - - Unauthorized
-Unauthorized
+---
 
-```
-
-### Sample Apps
-
-We have built different sample apps and embedded them in the CLI, you can setup a sample project in your terminal by running
-
-```sh
-$ sample sample-react "~/Desktop/Work"
-```
-
-By default, all commands are run in test mode, to switch to live, append the flag _"--domain live"_ at the end of your command
-
-## License
+## 📄 License
 
 MIT
