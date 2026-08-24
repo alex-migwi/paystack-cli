@@ -1,27 +1,34 @@
 #!/usr/bin/env node
 
-import vorpal from 'vorpal';
-import shell from 'shelljs';
-import * as db from './lib/db.js';
+import { Command } from 'commander';
+import registerAuthCommands from './commands/auth.js';
+import registerWebhookCommands from './commands/webhook.js';
+import registerConfigCommands from './commands/config.js';
+import registerSampleCommands from './commands/samples.js';
+import registerOpenApiCommands from './commands/openapi.js';
+import registerApiCommands from './commands/api.js';
+import { checkPackageUpdate } from './lib/helpers.js';
 
-globalThis.vorpal = new vorpal();
-globalThis.db = db;
+const CLI_VERSION = '0.0.7';
+const program = new Command();
 
-globalThis.vorpal.isCommandArgKeyPairNormalized = false;
+program
+  .name('paystack')
+  .description('Paystack Developer CLI - Build, test, and manage Paystack integrations from the command line')
+  .version(CLI_VERSION);
 
-if (!shell.which('git')) {
-  shell.echo('Sorry, this script requires git');
-  shell.exit(1);
-}
+// Register all command modules
+registerAuthCommands(program);
+registerWebhookCommands(program);
+registerConfigCommands(program);
+registerSampleCommands(program);
+registerOpenApiCommands(program);
+registerApiCommands(program);
 
-globalThis.vorpal.delimiter('paystack $').show();
+// Non-blocking version check
+checkPackageUpdate(CLI_VERSION);
 
-import webhook from './commands/webhook.js';
-import api from './commands/api.js';
-import auth from './commands/auth.js';
-import samples from './commands/samples.js';
-
-webhook();
-api();
-auth();
-samples();
+program.parseAsync(process.argv).catch((err) => {
+  console.error(err.message || err);
+  process.exit(1);
+});
