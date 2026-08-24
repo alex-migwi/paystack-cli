@@ -2,6 +2,7 @@ import http from 'http';
 import axios from 'axios';
 import crypto from 'crypto';
 import chalk from 'chalk';
+import localtunnel from 'localtunnel';
 import * as helpers from '../lib/helpers.js';
 import db from '../lib/db.js';
 import webhookSamples from '../lib/paystack/webhooks.js';
@@ -105,12 +106,14 @@ export function registerWebhookCommands(program) {
   // paystack webhook listen
   webhookCmd
     .command('listen')
-    .description('Start a local proxy server to receive, log, and forward webhooks to your local app')
+    .description('Start a local proxy server and localtunnel to receive and forward live Paystack webhooks')
     .option('--port <port>', 'Local port to listen for incoming webhooks', '7777')
     .option('--forward-to <url>', 'Local application URL to forward webhooks to', 'http://localhost:3000/api/paystack-webhook')
-    .action((options) => {
+    .option('--domain <domain>', 'Paystack environment (test or live)', 'test')
+    .action(async (options) => {
       const port = parseInt(options.port, 10) || 7777;
       const forwardUrl = options.forwardTo;
+      const domain = options.domain || db.read('domain') || 'test';
 
       const server = http.createServer((req, res) => {
         let body = '';
@@ -121,7 +124,6 @@ export function registerWebhookCommands(program) {
         req.on('end', async () => {
           const startTime = Date.now();
           const signature = req.headers['x-paystack-signature'] || 'none';
-          const eventType = req.headers['x-paystack-event'] || 'webhook';
 
           console.log(
             `\n${chalk.cyan(req.method)} ${req.url} -> ${chalk.underline(forwardUrl)} [sig: ${signature.substring(0, 16)}...]`
@@ -161,12 +163,39 @@ export function registerWebhookCommands(program) {
         });
       });
 
-      server.listen(port, () => {
-        console.log(chalk.bold.blue('\nPaystack Local Webhook Proxy'));
-        console.log('----------------------------');
-        console.log(`Listening on: ${chalk.green(`http://localhost:${port}`)}`);
+      server.listen(port, async () => {
+        console.log(chalk.bold.blue('\nPaystack Webhook Listener & Tunnel Proxy'));
+        console.log('------------------------------------------');
+        console.log(`Local Proxy:   ${chalk.green(`http://localhost:${port}`)}`);
         console.log(`Forwarding to: ${chalk.cyan(forwardUrl)}`);
-        console.log(`Press ${chalk.bold('Ctrl+C')} to stop.\n`);
+
+        try {
+          helpers.infoLog('Establishing localtunnel connection to Paystack Sandbox...');
+          const tunnel = await localtunnel({ port });
+          helpers.successLog(`Tunnel URL: ${chalk.underline.bold(tunnel.url)}`);
+
+          const token = db.read('token');
+          if (token) {
+            helpers.infoLog(`Auto-configuring Paystack Dashboard (${domain}) Test Webhook URL...`);
+            const updated = await helpers.updateWebhookUrl(token, tunnel.url, domain);
+            if (updated) {
+              helpers.successLog(`Webhook URL auto-configured on Paystack Dashboard!`);
+            } else {
+              helpers.warnLog(`Webhook tunnel active! Copy ${chalk.underline(tunnel.url)} to your Paystack Dashboard settings.`);
+            }
+          } else {
+            helpers.warnLog(`Not logged in. Tunnel active at ${chalk.underline(tunnel.url)}. Run \`paystack login\` for auto-configuration.`);
+          }
+
+          console.log(`\n${chalk.bold.green('Ready!')} Listening for live Paystack events... Press ${chalk.bold('Ctrl+C')} to stop.\n`);
+
+          process.on('SIGINT', () => {
+            tunnel.close();
+            process.exit(0);
+          });
+        } catch (err) {
+          helpers.warnLog(`Could not start localtunnel: ${err.message}. Local proxy active on port ${port}.`);
+        }
       });
     });
 }
