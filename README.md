@@ -10,7 +10,7 @@ A high-performance, scriptable Command Line Interface (CLI) for the Paystack API
 
 ### Proof of Concept
 
-This project was created as part of the DevEx Lead technical assessment at Paystack.
+This project was created as a proof of concept.
 
 It demonstrates the proposed approach, developer experience, and technical thinking behind the solution. The implementation is intentionally open to further refinement and iteration.
 
@@ -174,8 +174,8 @@ For detailed technical references, check the [`docs/`](./docs/) directory:
 
 ---
 
-## License & Assessment Notice
+## License Notice
 
-This project was created as part of the DevEx Lead technical assessment at Paystack. It is a proof of concept provided for evaluation purposes.
+This project is a proof of concept provided for evaluation purposes.
 
-See [LICENSE](LICENSE) for the assessment terms.
+See [LICENSE](LICENSE).
