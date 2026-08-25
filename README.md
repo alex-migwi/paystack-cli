@@ -8,14 +8,6 @@ A high-performance, scriptable Command Line Interface (CLI) for the Paystack API
 
 ---
 
-### Proof of Concept
-
-This project was created as a proof of concept.
-
-It demonstrates the proposed approach, developer experience, and technical thinking behind the solution. The implementation is intentionally open to further refinement and iteration.
-
----
-
 ## Key Features
 
 - **Non-Interactive CI/CD Native**: Designed for shell scripting, automated pipelines, and non-interactive execution.
