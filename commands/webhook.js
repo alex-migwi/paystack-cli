@@ -115,26 +115,46 @@ export function registerWebhookCommands(program) {
       const forwardUrl = options.forwardTo;
       const domain = options.domain || db.read('domain') || 'test';
 
+      const token = db.read('token');
+      const PAYSTACK_SECRET = await helpers.getKeys(token, 'secret', domain);
+
       const server = http.createServer((req, res) => {
         let body = '';
+        const chunks = []; // Store buffers, not strings
+
         req.on('data', (chunk) => {
-          body += chunk.toString();
+          // Join buffers first, THEN convert to string
+          chunks.push(chunk);
         });
 
         req.on('end', async () => {
           const startTime = Date.now();
-          const signature = req.headers['x-paystack-signature'] || 'none';
+          const signature = req.headers['x-paystack-signature'] || '';
+          body = Buffer.concat(chunks).toString('utf8');
+
+          // 1. VERIFY SIGNATURE BEFORE PROCESSING
+          const hash = crypto
+            .createHmac('sha512', PAYSTACK_SECRET)
+            .update(body) // Use raw body string
+            .digest('hex');
+
+          if (hash !== signature) {
+            console.log(chalk.red(`✖ Invalid Signature`));
+            res.writeHead(401, { 'Content-Type': 'application/json' });
+            return res.end(JSON.stringify({ error: 'Invalid signature' }));
+          }
 
           console.log(
             `\n${chalk.cyan(req.method)} ${req.url} -> ${chalk.underline(forwardUrl)} [sig: ${signature.substring(0, 16)}...]`
           );
 
           try {
-            let parsedBody = body;
+            // 2. Parse only after verification
+            let parsedBody;
             try {
               parsedBody = JSON.parse(body);
             } catch (e) {
-              // keep string
+              parsedBody = body; // Fallback if not JSON, though Paystack sends JSON
             }
 
             const targetResponse = await axios({
@@ -143,16 +163,18 @@ export function registerWebhookCommands(program) {
               data: parsedBody,
               headers: {
                 'Content-Type': req.headers['content-type'] || 'application/json',
-                'x-paystack-signature': signature,
+                'x-paystack-signature': signature, // Forward the original signature
               },
             });
 
             const duration = Date.now() - startTime;
-            console.log(chalk.green(`✔ ${targetResponse.status} ${targetResponse.statusText} (${duration}ms)`));
+            console.log(chalk.green(`✔ ${targetResponse.status} (${duration}ms)`));
 
             res.writeHead(targetResponse.status, { 'Content-Type': 'application/json' });
             res.end(JSON.stringify({ status: true, message: 'Webhook forwarded successfully' }));
           } catch (err) {
+            console.log("Axios error:", err.message); // Log 3
+
             const duration = Date.now() - startTime;
             const status = err.response ? err.response.status : 502;
             console.log(chalk.red(`✖ ${status} Forward Error: ${err.message} (${duration}ms)`));
@@ -162,6 +184,7 @@ export function registerWebhookCommands(program) {
           }
         });
       });
+
 
       server.on('error', (err) => {
         if (err.code === 'EADDRINUSE') {
@@ -185,13 +208,15 @@ export function registerWebhookCommands(program) {
           helpers.successLog(`Tunnel URL: ${chalk.underline.bold(tunnel.url)}`);
 
           const token = db.read('token');
+          const integration = db.read('selected_integration').id;
+
           if (token) {
             helpers.infoLog(`Auto-configuring Paystack Dashboard (${domain}) Test Webhook URL...`);
-            const updated = await helpers.updateWebhookUrl(token, tunnel.url, domain);
+            const updated = await helpers.updateWebhookUrl(token, integration, tunnel.url, domain);
             if (updated) {
               helpers.successLog(`Webhook URL auto-configured on Paystack Dashboard!`);
             } else {
-              helpers.warnLog(`Webhook tunnel active! Copy ${chalk.underline(tunnel.url)} to your Paystack Dashboard settings.`);
+              helpers.warnLog(`Webhook tunnel active!!! Copy ${chalk.underline(tunnel.url)} to your Paystack Dashboard settings.`);
             }
           } else {
             helpers.warnLog(`Not logged in. Tunnel active at ${chalk.underline(tunnel.url)}. Run \`paystack login\` for auto-configuration.`);
