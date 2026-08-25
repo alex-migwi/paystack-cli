@@ -1,6 +1,6 @@
 {
   "name": "@paystack-oss/dev-cli",
-  "version": "0.0.7",
+  "version": "1.0.0",
   "private": false,
   "type": "module",
   "scripts": {
