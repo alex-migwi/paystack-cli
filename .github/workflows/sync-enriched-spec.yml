@@ -23,7 +23,7 @@ jobs:
       - name: Fetch Latest Enriched JSON Spec Artifact
         run: |
           echo "Fetching latest dist/paystack-enriched.json from paystack-spec-enriched..."
-          curl -sSL "https://raw.githubusercontent.com/PaystackOSS/paystack-spec-enriched/main/dist/paystack-enriched.json" -o lib/paystack/openapi.json || true
+          curl -sSL "https://raw.githubusercontent.com/alex-migwi/paystack-spec-enriched/main/dist/paystack-enriched.json" -o lib/paystack/openapi.json || true
 
       - name: Validate CLI & Run Test Suite
         run: |
@@ -49,7 +49,7 @@ jobs:
           commit-message: "chore(spec): auto-sync enriched OpenAPI JSON specification"
           title: "chore(spec): auto-sync enriched Paystack OpenAPI JSON specification"
           body: |
-            Automated sync triggered by a new release of [`paystack-spec-enriched`](https://github.com/PaystackOSS/paystack-spec-enriched).
+            Automated sync triggered by a new release of [`paystack-spec-enriched`](https://github.com/alex-migwi/paystack-spec-enriched).
             
             - Synced latest `dist/paystack-enriched.json`.
             - 40x faster CLI startup performance via native V8 JSON parsing.
