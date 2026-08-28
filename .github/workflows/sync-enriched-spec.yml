@@ -10,16 +10,20 @@ on:
         type: string
         required: false
 
-permissions:
-  contents: write
-
 jobs:
   sync-enriched-spec:
     runs-on: ubuntu-latest
 
+    # grant only the minimum permissions needed to open a PR
+    permissions:
+      contents: write
+      pull-requests: write
+
     steps:
       - name: Checkout paystack-cli repository
         uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -46,10 +50,18 @@ jobs:
           node --check cli.js
           node cli.js openapi info
 
-      - name: Commit & Push Updated Local Spec
-        uses: stefanzweifel/git-auto-commit-action@v5
+      - name: Create Isolated Spec Update PR via GitHub Bot
+        uses: peter-evans/create-pull-request@v7
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          commit_message: "chore(spec): sync latest enriched spec & update operational changelog"
-          file_pattern: "lib/paystack/*"
+          commit-message: "chore: automated update to enriched spec file"
+          title: "Automated Spec Update"
+          body: "This PR was securely opened by the GitHub Action Bot. It strictly contains updates to enriched sec file."
+          branch: "automation/enriched-spec-update"
+          base: main
+          reviewers: "alex-migwi"
+          
+          # This discard ANY changes made outside of this explicit path.
+          add-paths: |
+            lib/paystack/openapi.json
           

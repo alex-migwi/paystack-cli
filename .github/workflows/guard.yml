@@ -1,0 +1,31 @@
+name: Path Protection Guard
+
+on:
+  pull_request_target:
+    paths:
+      - '.github/**' # lock down
+
+jobs:
+  enforce-path-limits:
+    runs-on: ubuntu-latest
+    if: github.actor != 'alex-migwi' && github.actor != 'github-actions[bot]'
+    steps:
+      - name: Close and Block PR
+        uses: actions/github-script@v7
+        with:
+          script: |
+            // 1. Security Violation comment
+            await github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: '⚠️ **Security Violation:** You have modified files in a protected directory (`.github/`). This action is restricted to repository maintainers. Closing Pull Request.'
+            });
+            
+            // 2. Kill the PR immediately
+            await github.rest.pulls.update({
+              pull_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'closed'
+            });
